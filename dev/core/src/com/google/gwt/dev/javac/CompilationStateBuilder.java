@@ -16,11 +16,17 @@
 package com.google.gwt.dev.javac;
 
 import com.google.gwt.core.ext.TreeLogger;
+import com.google.gwt.core.ext.UnableToCompleteException;
 import com.google.gwt.dev.javac.CompilationUnitBuilder.GeneratedCompilationUnitBuilder;
 import com.google.gwt.dev.javac.CompilationUnitBuilder.ResourceCompilationUnitBuilder;
 import com.google.gwt.dev.javac.JdtCompiler.UnitProcessor;
+import com.google.gwt.dev.javac.jribble.LooseJavaParser;
+import com.google.gwt.dev.javac.jribble.LooseJavaUnit;
+import com.google.gwt.dev.jjs.ast.JClassType;
 import com.google.gwt.dev.js.ast.JsProgram;
 import com.google.gwt.dev.resource.Resource;
+import com.google.gwt.dev.resource.ResourceOracle;
+import com.google.gwt.dev.util.Util;
 
 import org.apache.commons.collections.map.AbstractReferenceMap;
 import org.apache.commons.collections.map.ReferenceIdentityMap;
@@ -283,9 +289,29 @@ public class CompilationStateBuilder {
     // Invalidate units with invalid refs.
     invalidateUnitsWithInvalidRefs(logger, resultUnits,
         Collections.<ContentId> emptySet());
-    return new CompilationState(logger, resultUnits.values(), compileMoreLater);
+    return new CompilationState(logger,  resultUnits.values(), parseAllLooseJava(logger,
+        resources),compileMoreLater);
   }
 
+  private Iterable<LooseJavaUnit> parseAllLooseJava(TreeLogger logger,
+      Iterable<Resource> sources) {
+    List<LooseJavaUnit> units = new ArrayList<LooseJavaUnit>();
+    for (Resource source : sources) {
+      if (!source.getPath().endsWith(".ljava")) {
+        continue;
+      }
+      JClassType ast;
+      try {
+        ast = LooseJavaParser.parse(Util.createReader(logger,
+            source.openContents()));
+      } catch (UnableToCompleteException e) {
+        // bad unit; skip it
+        continue;
+      }
+      units.add(new LooseJavaUnit(ast.getName(), ast));
+    }
+    return units;
+  }
   /**
    * Compile new generated units into an existing state.
    * 

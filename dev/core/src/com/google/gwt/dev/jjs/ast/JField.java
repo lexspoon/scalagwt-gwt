@@ -55,6 +55,18 @@ public class JField extends JVariable implements CanBeStatic, HasEnclosingType {
     // Disposition is not cached because we can be set final later.
   }
 
+  public Disposition getDisposition() {
+    if (isCompileTimeConstant) {
+      return Disposition.COMPILE_TIME_CONSTANT;
+    } else if (isFinal()) {
+      return Disposition.FINAL;
+    } else if (isVolatile()) {
+      return Disposition.VOLATILE;
+    } else {
+      return Disposition.NONE;
+    }
+  }
+
   public JDeclaredType getEnclosingType() {
     return enclosingType;
   }

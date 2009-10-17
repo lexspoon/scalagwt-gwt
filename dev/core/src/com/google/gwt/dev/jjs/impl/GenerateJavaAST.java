@@ -16,6 +16,8 @@
 package com.google.gwt.dev.jjs.impl;
 
 import com.google.gwt.dev.javac.JsniCollector;
+import com.google.gwt.dev.javac.jribble.LooseJavaUnit;
+import com.google.gwt.dev.javac.ljava.ast.JribMethodCall;
 import com.google.gwt.dev.jjs.HasSourceInfo;
 import com.google.gwt.dev.jjs.InternalCompilerException;
 import com.google.gwt.dev.jjs.JJSOptions;
@@ -208,7 +210,6 @@ import java.util.Map;
  * JDT nodes and our already-created AST nodes.
  */
 public class GenerateJavaAST {
-
   /**
    * Visit the JDT AST and produce our own AST into the passed-in TypeMap's
    * JProgram. By the end of this pass, the produced AST should contain every
@@ -1937,9 +1938,14 @@ public class GenerateJavaAST {
         JField field = classType.getFields().get(0);
         /*
          * In some circumstances, the outer this ref can be captured as a local
+<<<<<<< HEAD
          * value (val$this), in other cases, as a this ref (this$).
          * 
          * TODO: investigate using more JDT node information as an alternative
+=======
+         * value (val$this), in other cases, as a this ref (this$). TODO:
+         * investigate using more JDT node information as an alternative
+>>>>>>> Adds a skeleton of how Loose Java can be imported.
          */
         if (field.getName().startsWith("this$")
             || field.getName().startsWith("val$this$")) {
@@ -2977,10 +2983,106 @@ public class GenerateJavaAST {
   }
 
   /**
+   * Converts Loose Java nodes into Java nodes and installes them in a supplied
+   * JProgram.
+   */
+  private static class LooseJavaConverter {
+    private JMethod currentMethod;
+    private JDeclaredType currentType;
+    private final JProgram program;
+    private final TypeMap typeMap;
+
+    public LooseJavaConverter(JProgram program, TypeMap typeMap) {
+      this.program = program;
+      this.typeMap = typeMap;
+    }
+
+    public void process(JDeclaredType type) {
+      JDeclaredType newType = typeMap.get(type);
+
+      currentType = newType;
+
+      for (JMethod method : type.getMethods()) {
+        process(method);
+      }
+
+      // TODO(spoon,grek) process supertype, interfaces
+
+      currentType = null;
+    }
+
+    private JExpression convert(JExpression expr) {
+      if (expr == null) {
+        return null;
+      }
+
+      if (expr instanceof JStringLiteral) {
+        return program.getLiteralString(expr.getSourceInfo(),
+            ((JStringLiteral) expr).getValue());
+      }
+
+      if (expr instanceof JribMethodCall) {
+        JribMethodCall methodCall = (JribMethodCall) expr;
+        JExpression newInstance = convert(methodCall.getInstance());
+        JMethod newTarget = typeMap.getMethod(
+            methodCall.getMethodRef().getTypeName(),
+            methodCall.getMethodRef().getMethodJsniSignature());
+        JMethodCall newMethodCall = new JMethodCall(methodCall.getSourceInfo(),
+            newInstance, newTarget);
+
+        for (JExpression arg : methodCall.getArguments()) {
+          newMethodCall.addArg(convert(arg));
+        }
+
+        return newMethodCall;
+      }
+
+      throw new UnknownNodeSubtype(expr);
+
+      // TODO(spoon,grek) handle other expression types
+    }
+
+    private JStatement convert(JStatement stat) {
+      if (stat instanceof JExpressionStatement) {
+        JExpressionStatement statExpr = (JExpressionStatement) stat;
+        JExpression newExpr = convert(statExpr.getExpr());
+        return newExpr.makeStatement();
+      }
+
+      throw new UnknownNodeSubtype(stat);
+      // TODO(spoon,grek) handle other statement types
+    }
+
+    private void process(JMethod method) {
+      JMethod newMethod = typeMap.get(method);
+
+      // TODO(spoon,grek) handle native methods
+      JMethodBody methodBody = (JMethodBody) method.getBody();
+      JMethodBody newBody = new JMethodBody(methodBody.getSourceInfo());
+      newMethod.setBody(newBody);
+
+      for (JLocal local : methodBody.getLocals()) {
+        JProgram.createLocal(local.getSourceInfo(),
+            local.getName(), typeMap.get(local.getType()),
+            local.isFinal(), newBody);
+      }
+
+      currentMethod = newMethod;
+
+      for (JStatement stat : methodBody.getStatements()) {
+        newBody.getBlock().addStmt(convert(stat));
+      }
+
+      currentMethod = null;
+    }
+  }
+
+  /**
    * Combines the information from the JDT type nodes and the type map to create
    * a JProgram structure.
    */
-  public static void exec(TypeDeclaration[] types, TypeMap typeMap,
+  public static void exec(TypeDeclaration[] types,
+      Iterable<LooseJavaUnit> looseJavaUnits, TypeMap typeMap,
       JProgram jprogram, JsProgram jsProgram, JJSOptions options) {
     // Construct the basic AST.
     JavaASTGenerationVisitor v = new JavaASTGenerationVisitor(typeMap,
@@ -2991,6 +3093,12 @@ public class GenerateJavaAST {
     for (TypeDeclaration type : types) {
       v.addBridgeMethods(type.binding);
     }
+
+    LooseJavaConverter looseJavaProc = new LooseJavaConverter(jprogram, typeMap);
+    for (LooseJavaUnit unit : looseJavaUnits) {
+      looseJavaProc.process(unit.getSyntaxTree());
+    }
+
     Collections.sort(jprogram.getDeclaredTypes(), new HasNameSort());
 
     // Process JSNI.

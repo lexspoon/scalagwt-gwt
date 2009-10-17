@@ -35,12 +35,17 @@ import com.google.gwt.core.ext.soyc.impl.StoryRecorder;
 import com.google.gwt.core.linker.SoycReportLinker;
 import com.google.gwt.dev.Permutation;
 import com.google.gwt.dev.cfg.ModuleDef;
+import com.google.gwt.dev.javac.CompilationState;
+import com.google.gwt.dev.javac.jribble.LooseJavaUnit;
+import com.google.gwt.dev.javac.ljava.ast.JribMethodCall;
+import com.google.gwt.dev.javac.ljava.ast.JribVisitor;
 import com.google.gwt.dev.jdt.RebindPermutationOracle;
 import com.google.gwt.dev.jdt.WebModeCompilerFrontEnd;
 import com.google.gwt.dev.jjs.CorrelationFactory.DummyCorrelationFactory;
 import com.google.gwt.dev.jjs.CorrelationFactory.RealCorrelationFactory;
 import com.google.gwt.dev.jjs.InternalCompilerException.NodeInfo;
 import com.google.gwt.dev.jjs.UnifiedAst.AST;
+import com.google.gwt.dev.jjs.ast.Context;
 import com.google.gwt.dev.jjs.ast.JBinaryOperation;
 import com.google.gwt.dev.jjs.ast.JBinaryOperator;
 import com.google.gwt.dev.jjs.ast.JBlock;
@@ -54,6 +59,7 @@ import com.google.gwt.dev.jjs.ast.JMethodCall;
 import com.google.gwt.dev.jjs.ast.JProgram;
 import com.google.gwt.dev.jjs.ast.JReboundEntryPoint;
 import com.google.gwt.dev.jjs.ast.JStatement;
+import com.google.gwt.dev.jjs.ast.JVisitor;
 import com.google.gwt.dev.jjs.impl.ArrayNormalizer;
 import com.google.gwt.dev.jjs.impl.AssertionNormalizer;
 import com.google.gwt.dev.jjs.impl.AssertionRemover;
@@ -435,6 +441,8 @@ public class JavaToJavaScriptCompiler {
       throw new IllegalArgumentException("entry point(s) required");
     }
 
+    CompilationState compilationState = module.getCompilationState(logger);
+
     Set<String> allRootTypes = new TreeSet<String>();
 
     // Find all the possible rebinds for declared entry point types.
@@ -447,6 +455,7 @@ public class JavaToJavaScriptCompiler {
     allRootTypes.addAll(JProgram.CODEGEN_TYPES_SET);
     allRootTypes.addAll(JProgram.INDEX_TYPES_SET);
     allRootTypes.add(FragmentLoaderCreator.ASYNC_FRAGMENT_LOADER);
+    allRootTypes.addAll(findRefsFromLooseJava(compilationState));
 
     Memory.maybeDumpMemory("CompStateBuilt");
 
@@ -486,7 +495,7 @@ public class JavaToJavaScriptCompiler {
        */
       TypeMap typeMap = new TypeMap(jprogram);
       TypeDeclaration[] allTypeDeclarations = BuildTypeMap.exec(typeMap,
-          goldenCuds, jsProgram);
+          goldenCuds, compilationState.getLooseJavaUnits(), jsProgram);
 
       // BuildTypeMap can uncover syntactic JSNI errors; report & abort
       checkForErrors(logger, goldenCuds, true);
@@ -495,7 +504,8 @@ public class JavaToJavaScriptCompiler {
       jprogram.typeOracle.computeBeforeAST();
 
       // (2) Create our own Java AST from the JDT AST.
-      GenerateJavaAST.exec(allTypeDeclarations, typeMap, jprogram, jsProgram,
+      GenerateJavaAST.exec(allTypeDeclarations,
+          compilationState.getLooseJavaUnits(), typeMap, jprogram, jsProgram,
           options);
 
       // GenerateJavaAST can uncover semantic JSNI errors; report & abort
@@ -886,6 +896,27 @@ public class JavaToJavaScriptCompiler {
       }
     }
     return null;
+  }
+
+  private static Collection<String> findRefsFromLooseJava(
+      CompilationState compilationState) {
+    class FindRefs extends JVisitor implements JribVisitor {
+      List<String> refs = new ArrayList<String>();
+
+      public void endVisit(JribMethodCall x, Context ctx) {
+        refs.add(x.getMethodRef().getTypeName());
+      }
+
+      public boolean visit(JribMethodCall x, Context ctx) {
+        return true;
+      }
+    }
+    FindRefs findRefs = new FindRefs();
+
+    for (LooseJavaUnit unit : compilationState.getLooseJavaUnits()) {
+      findRefs.accept(unit.getSyntaxTree());
+    }
+    return findRefs.refs;
   }
 
   /**

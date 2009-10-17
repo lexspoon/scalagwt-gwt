@@ -18,10 +18,12 @@ package com.google.gwt.dev.javac;
 import com.google.gwt.core.ext.TreeLogger;
 import com.google.gwt.core.ext.typeinfo.TypeOracle;
 import com.google.gwt.dev.javac.CompilationStateBuilder.CompileMoreLater;
+import com.google.gwt.dev.javac.jribble.LooseJavaUnit;
 
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 
 /**
@@ -30,7 +32,6 @@ import java.util.Map;
  * may be invalidated at certain times and recomputed.
  */
 public class CompilationState {
-
   /**
    * Classes mapped by binary name.
    */
@@ -69,13 +70,19 @@ public class CompilationState {
   private final Collection<CompilationUnit> exposedUnits = Collections.unmodifiableCollection(unitMap.values());
 
   /**
+   * Loose Java units that are part of this compilation.
+   */
+  private Iterable<LooseJavaUnit> looseJavaUnits;
+
+  /**
    * Controls our type oracle.
    */
   private final TypeOracleMediator mediator = new TypeOracleMediator();
 
   CompilationState(TreeLogger logger, Collection<CompilationUnit> units,
-      CompileMoreLater compileMoreLater) {
+      Iterable<LooseJavaUnit> looseJavaUnits, CompileMoreLater compileMoreLater) {
     this.compileMoreLater = compileMoreLater;
+    this.looseJavaUnits = looseJavaUnits;
     assimilateUnits(logger, units);
   }
 
@@ -117,6 +124,20 @@ public class CompilationState {
     return exposedUnits;
   }
 
+  public boolean isLooseJavaType(String seedTypeName) {
+    // TODO(spoon, grek) make a set to hold these names
+    for (LooseJavaUnit unit : looseJavaUnits) {
+      if (unit.getName().equals(seedTypeName)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  public Iterable<LooseJavaUnit> getLooseJavaUnits() {
+    return looseJavaUnits;
+  }
+
   public TypeOracle getTypeOracle() {
     return mediator.getTypeOracle();
   }
@@ -132,6 +153,6 @@ public class CompilationState {
         }
       }
     }
-    mediator.addNewUnits(logger, units);
+    mediator.addNewUnits(logger, units, new HashSet<LooseJavaUnit>());
   }
 }

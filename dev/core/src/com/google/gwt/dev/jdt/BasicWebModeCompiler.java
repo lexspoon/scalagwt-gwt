@@ -78,6 +78,10 @@ public class BasicWebModeCompiler extends AbstractCompiler {
         seedTypeNames.length + intfTypes.size());
 
     for (String seedTypeName : seedTypeNames) {
+      if (compilationState.isLooseJavaType(seedTypeName)) {
+        // All Loose Java classes are pulled in
+        continue;
+      }
       CompilationUnit unit = getUnitForType(logger, classMapBySource,
           seedTypeName);
 

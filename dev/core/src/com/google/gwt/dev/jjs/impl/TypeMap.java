@@ -17,17 +17,23 @@ package com.google.gwt.dev.jjs.impl;
 
 import com.google.gwt.dev.jjs.InternalCompilerException;
 import com.google.gwt.dev.jjs.ast.JArrayType;
+import com.google.gwt.dev.jjs.ast.JDeclaredType;
+import com.google.gwt.dev.jjs.ast.JField;
+import com.google.gwt.dev.jjs.ast.JMethod;
 import com.google.gwt.dev.jjs.ast.JNode;
+import com.google.gwt.dev.jjs.ast.JPrimitiveType;
 import com.google.gwt.dev.jjs.ast.JProgram;
+import com.google.gwt.dev.jjs.ast.JReferenceType;
 import com.google.gwt.dev.jjs.ast.JType;
+import com.google.gwt.dev.util.collect.HashMap;
 
 import org.eclipse.jdt.internal.compiler.lookup.ArrayBinding;
 import org.eclipse.jdt.internal.compiler.lookup.BaseTypeBinding;
 import org.eclipse.jdt.internal.compiler.lookup.Binding;
-import org.eclipse.jdt.internal.compiler.lookup.TypeIds;
 import org.eclipse.jdt.internal.compiler.lookup.ParameterizedFieldBinding;
 import org.eclipse.jdt.internal.compiler.lookup.ParameterizedMethodBinding;
 import org.eclipse.jdt.internal.compiler.lookup.ParameterizedTypeBinding;
+import org.eclipse.jdt.internal.compiler.lookup.TypeIds;
 import org.eclipse.jdt.internal.compiler.lookup.TypeVariableBinding;
 import org.eclipse.jdt.internal.compiler.lookup.WildcardBinding;
 
@@ -35,14 +41,27 @@ import java.util.IdentityHashMap;
 import java.util.Map;
 
 /**
- * Contains the list of the top-level and array types.
+ * Contains maps into our Java nodes. Supports lookups from JDT nodes and from
+ * JNodes that are from a separate AST.
+ * 
+ * TODO(spoon,grek) add a map for method parameters
  */
 public class TypeMap {
+
+  private static String methodDescriptor(String typeName, String jsniSignature) {
+    return typeName + "." + jsniSignature;
+  }
 
   /**
    * Maps Eclipse AST nodes to our JNodes.
    */
   private final Map<Binding, JNode> crossRefMap = new IdentityHashMap<Binding, JNode>();
+
+  private Map<String, JDeclaredType> declaredTypesByName = new HashMap<String, JDeclaredType>();
+
+  private Map<String, JField> fieldsByName = new HashMap<String, JField>();
+
+  private Map<String, JMethod> methodsByName = new HashMap<String, JMethod>();
 
   /**
    * Centralizes creation and singleton management.
@@ -80,6 +99,47 @@ public class TypeMap {
     return result;
   }
 
+  public JDeclaredType get(JDeclaredType type) {
+    return declaredTypesByName.get(type.getName());
+  }
+
+  public JMethod get(JMethod target) {
+    String typeName = target.getEnclosingType().getName();
+    String methodJsniSignature = target.getJsniSignature();
+    return getMethod(typeName, methodJsniSignature);
+  }
+
+  public JPrimitiveType get(JPrimitiveType type) {
+    // Primitives are interned, so just return it
+    return type;
+  }
+
+  public JReferenceType get(JReferenceType type) {
+    if (type instanceof JDeclaredType) {
+      return get((JDeclaredType) type);
+    }
+
+    throw new UnknownNodeSubtype(type);
+    // TODO(spoon, grek) fill in JArrayType and JNullType
+  }
+
+  public JType get(JType type) {
+    if (type == null) {
+      return type;
+    }
+    if (type instanceof JPrimitiveType) {
+      return get((JPrimitiveType) type);
+    }
+    if (type instanceof JReferenceType) {
+      return get((JReferenceType) type);
+    }
+    throw new UnknownNodeSubtype(type);
+  }
+
+  public JMethod getMethod(String typeName, String methodJsniSignature) {
+    return methodsByName.get(methodDescriptor(typeName, methodJsniSignature));
+  }
+
   public JProgram getProgram() {
     return program;
   }
@@ -93,8 +153,26 @@ public class TypeMap {
     assert (old == null);
   }
 
+  public void put(JDeclaredType type) {
+    declaredTypesByName.put(type.getName(), type);
+  }
+
+  public void put(JField field) {
+    fieldsByName.put(fieldDescriptor(field.getEnclosingType().getName(),
+        field.getName()), field);
+  }
+
+  public void put(JMethod method) {
+    methodsByName.put(methodDescriptor(method.getEnclosingType().getName(),
+        method.getJsniSignature()), method);
+  }
+
   public JNode tryGet(Binding binding) {
     return internalGet(binding);
+  }
+
+  private String fieldDescriptor(String typeName, String fieldName) {
+    return typeName + "." + fieldName;
   }
 
   private JNode internalGet(Binding binding) {
@@ -152,5 +230,4 @@ public class TypeMap {
       return null;
     }
   }
-
 }

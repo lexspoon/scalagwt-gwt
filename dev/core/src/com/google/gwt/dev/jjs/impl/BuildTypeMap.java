@@ -16,9 +16,11 @@
 package com.google.gwt.dev.jjs.impl;
 
 import com.google.gwt.dev.javac.JsniCollector;
+import com.google.gwt.dev.javac.jribble.LooseJavaUnit;
 import com.google.gwt.dev.jjs.HasSourceInfo;
 import com.google.gwt.dev.jjs.InternalCompilerException;
 import com.google.gwt.dev.jjs.SourceInfo;
+import com.google.gwt.dev.jjs.ast.Context;
 import com.google.gwt.dev.jjs.ast.JClassType;
 import com.google.gwt.dev.jjs.ast.JConstructor;
 import com.google.gwt.dev.jjs.ast.JDeclaredType;
@@ -36,6 +38,7 @@ import com.google.gwt.dev.jjs.ast.JProgram;
 import com.google.gwt.dev.jjs.ast.JReferenceType;
 import com.google.gwt.dev.jjs.ast.JReturnStatement;
 import com.google.gwt.dev.jjs.ast.JType;
+import com.google.gwt.dev.jjs.ast.JVisitor;
 import com.google.gwt.dev.jjs.ast.JField.Disposition;
 import com.google.gwt.dev.jjs.ast.js.JsniMethodBody;
 import com.google.gwt.dev.js.JsAbstractSymbolResolver;
@@ -90,6 +93,98 @@ import java.util.Set;
  * whether they need to be created. Building our AST from JDT starts here.
  */
 public class BuildTypeMap {
+
+  public static class BuildDeclMapForLooseJavaVisitor extends JVisitor {
+    private final JProgram program;
+    private final TypeMap typeMap;
+    private JDeclaredType currentType;
+
+    public BuildDeclMapForLooseJavaVisitor(TypeMap typeMap) {
+      this.typeMap = typeMap;
+      program = this.typeMap.getProgram();
+    }
+
+    @Override
+    public boolean visit(JClassType type, Context ctx) {
+      currentType = typeMap.get(type);
+      return true;
+    }
+
+    @Override
+    public boolean visit(JInterfaceType type, Context ctx) {
+      currentType = typeMap.get(type);
+      return true;
+    }
+
+    @Override
+    public boolean visit(JField field, Context ctx) {
+      JField newField = program.createField(field.getSourceInfo(),
+          field.getName(), currentType, typeMap.get(field.getType()),
+          field.isStatic(), field.getDisposition());
+
+      typeMap.put(newField);
+
+      return false;
+    }
+
+    @Override
+    public boolean visit(JMethod method, Context ctx) {
+      JMethod newMethod = program.createMethod(method.getSourceInfo(),
+          method.getName(), currentType, typeMap.get(method.getType()),
+          method.isAbstract(), method.isStatic(), method.isFinal(),
+          method.isPrivate(), method.isNative());
+      for (JParameter param : method.getParams()) {
+        JProgram.createParameter(param.getSourceInfo(), param.getName(),
+            typeMap.get(param.getType()), param.isFinal(), false, newMethod);
+      }
+      newMethod.freezeParamTypes();
+
+      typeMap.put(newMethod);
+
+      return false;
+    }
+  }
+
+  public static class BuildTypeMapForLooseJavaVisitor extends JVisitor {
+
+    private final JProgram program;
+    private final TypeMap typeMap;
+
+    public BuildTypeMapForLooseJavaVisitor(TypeMap typeMap) {
+      this.typeMap = typeMap;
+      program = this.typeMap.getProgram();
+    }
+
+    @Override
+    public boolean visit(JClassType type, Context ctx) {
+      addToMap(type);
+      return false;
+    }
+
+    @Override
+    public boolean visit(JInterfaceType type, Context ctx) {
+      addToMap(type);
+      return false;
+    }
+
+    private void addToMap(JDeclaredType type) {
+      SourceInfo info = type.getSourceInfo();
+      JDeclaredType newType;
+      if (type instanceof JClassType) {
+        newType = program.createClass(info, type.getName(), type.isAbstract(),
+            type.isFinal());
+      } else if (type instanceof JInterfaceType) {
+        newType = program.createInterface(info, type.getName());
+      } else {
+        throw new InternalCompilerException("Unknown subtype of JDeclaredType");
+      }
+      info.addCorrelation(program.getCorrelator().by(newType));
+
+      addInitializers(info, program, newType);
+
+      typeMap.put(newType);
+    }
+  }
 
   /**
    * Creates JNodes for every method, field, initializer, parameter, and local
@@ -351,6 +446,7 @@ public class BuildTypeMap {
       JField field = program.createField(info, String.valueOf(binding.name),
           enclosingType, type, binding.isStatic(), disposition);
       typeMap.put(binding, field);
+      typeMap.put(field);
       info.addCorrelation(program.getCorrelator().by(field));
       return field;
     }
@@ -367,6 +463,7 @@ public class BuildTypeMap {
         typeMap.put(binding.matchingField, field);
       }
       typeMap.put(binding, field);
+      typeMap.put(field);
       return field;
     }
 
@@ -535,6 +632,7 @@ public class BuildTypeMap {
         }
       }
       method.freezeParamTypes();
+      typeMap.put(method);
     }
 
     /**
@@ -648,6 +746,7 @@ public class BuildTypeMap {
             assert false;
           }
           newMethod.freezeParamTypes();
+          typeMap.put(newMethod);
         }
       }
     }
@@ -803,27 +902,10 @@ public class BuildTypeMap {
         }
         info.addCorrelation(program.getCorrelator().by(newType));
 
-        /**
-         * We emulate static initializers and instance initializers as methods.
-         * As in other cases, this gives us: simpler AST, easier to optimize,
-         * more like output JavaScript. Clinit is always in slot 0, init (if it
-         * exists) is always in slot 1.
-         */
-        JMethod clinit = program.createMethod(info.makeChild(
-            BuildTypeMapVisitor.class, "Class initializer"), "$clinit",
-            newType, program.getTypeVoid(), false, true, true, true, false);
-        clinit.freezeParamTypes();
-        clinit.setSynthetic();
-
-        if (newType instanceof JClassType) {
-          JMethod init = program.createMethod(info.makeChild(
-              BuildTypeMapVisitor.class, "Instance initializer"), "$init",
-              newType, program.getTypeVoid(), false, false, true, true, false);
-          init.freezeParamTypes();
-          init.setSynthetic();
-        }
+        addInitializers(info, program, newType);
 
         typeMap.put(binding, newType);
+        typeMap.put(newType);
         return true;
       } catch (Throwable e) {
         throw translateException(typeDeclaration, e);
@@ -874,9 +956,35 @@ public class BuildTypeMap {
   }
 
   public static TypeDeclaration[] exec(TypeMap typeMap,
-      CompilationUnitDeclaration[] unitDecls, JsProgram jsProgram) {
-    createPeersForTypes(unitDecls, typeMap);
-    return createPeersForNonTypeDecls(unitDecls, typeMap, jsProgram);
+      CompilationUnitDeclaration[] unitDecls,
+      Iterable<LooseJavaUnit> looseJavaUnits, JsProgram jsProgram) {
+    createPeersForTypes(unitDecls, looseJavaUnits, typeMap);
+    return createPeersForNonTypeDecls(unitDecls, looseJavaUnits, typeMap,
+        jsProgram);
+  }
+
+  /**
+   * We emulate static initializers and instance initializers as methods. As in
+   * other cases, this gives us: simpler AST, easier to optimize, more like
+   * output JavaScript. Clinit is always in slot 0, init (if it exists) is
+   * always in slot 1.
+   */
+  private static void addInitializers(SourceInfo info, JProgram program,
+      JDeclaredType newType) {
+
+    JMethod clinit = program.createMethod(info.makeChild(
+        BuildTypeMapVisitor.class, "Class initializer"), "$clinit", newType,
+        program.getTypeVoid(), false, true, true, true, false);
+    clinit.freezeParamTypes();
+    clinit.setSynthetic();
+
+    if (newType instanceof JClassType) {
+      JMethod init = program.createMethod(info.makeChild(
+          BuildTypeMapVisitor.class, "Instance initializer"), "$init", newType,
+          program.getTypeVoid(), false, false, true, true, false);
+      init.freezeParamTypes();
+      init.setSynthetic();
+    }
   }
 
   static String dotify(char[][] name) {
@@ -892,7 +1000,8 @@ public class BuildTypeMap {
   }
 
   private static TypeDeclaration[] createPeersForNonTypeDecls(
-      CompilationUnitDeclaration[] unitDecls, TypeMap typeMap,
+      CompilationUnitDeclaration[] unitDecls,
+      Iterable<LooseJavaUnit> looseJavaUnits, TypeMap typeMap,
       JsProgram jsProgram) {
     // Traverse again to create our JNode peers for each method, field,
     // parameter, and local
@@ -900,15 +1009,27 @@ public class BuildTypeMap {
     for (int i = 0; i < unitDecls.length; ++i) {
       unitDecls[i].traverse(v2, unitDecls[i].scope);
     }
+
+    JVisitor v2b = new BuildDeclMapForLooseJavaVisitor(typeMap);
+    for (LooseJavaUnit unit : looseJavaUnits) {
+      v2b.accept(unit.getSyntaxTree());
+    }
+
     return v2.getTypeDeclarataions();
   }
 
   private static void createPeersForTypes(
-      CompilationUnitDeclaration[] unitDecls, TypeMap typeMap) {
+      CompilationUnitDeclaration[] unitDecls,
+      Iterable<LooseJavaUnit> looseJavaUnits, TypeMap typeMap) {
     // Traverse once to create our JNode peers for each type
     BuildTypeMapVisitor v1 = new BuildTypeMapVisitor(typeMap);
     for (int i = 0; i < unitDecls.length; ++i) {
       unitDecls[i].traverse(v1, unitDecls[i].scope);
+    }
+
+    JVisitor v1b = new BuildTypeMapForLooseJavaVisitor(typeMap);
+    for (LooseJavaUnit unit : looseJavaUnits) {
+      v1b.accept(unit.getSyntaxTree());
     }
   }
 }

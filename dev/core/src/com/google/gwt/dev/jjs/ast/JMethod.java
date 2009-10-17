@@ -155,6 +155,20 @@ public class JMethod extends JNode implements HasAnnotations, HasEnclosingType,
     return enclosingType;
   }
 
+  public String getJsniSignature() {
+    StringBuilder sig = new StringBuilder();
+
+    sig.append(name);
+    sig.append("(");
+    for (JParameter param : params) {
+      sig.append(param.getType().getJsniSignatureName());
+    }
+    sig.append(")");
+    sig.append(returnType.getJsniSignatureName());
+
+    return sig.toString();
+  }
+
   public String getName() {
     return name;
   }

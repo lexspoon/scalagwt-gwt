@@ -20,6 +20,7 @@ import com.google.gwt.core.ext.UnableToCompleteException;
 import com.google.gwt.dev.javac.CompilationState;
 import com.google.gwt.dev.javac.impl.JavaResourceBase;
 import com.google.gwt.dev.javac.impl.MockJavaResource;
+import com.google.gwt.dev.javac.jribble.LooseJavaUnit;
 import com.google.gwt.dev.jdt.BasicWebModeCompiler;
 import com.google.gwt.dev.jdt.FindDeferredBindingSitesVisitor;
 import com.google.gwt.dev.jjs.CorrelationFactory.DummyCorrelationFactory;
@@ -34,6 +35,7 @@ import com.google.gwt.dev.jjs.impl.JavaScriptObjectNormalizer;
 import com.google.gwt.dev.jjs.impl.TypeMap;
 import com.google.gwt.dev.js.ast.JsProgram;
 import com.google.gwt.dev.util.Empty;
+import com.google.gwt.dev.util.collect.HashSet;
 
 import org.eclipse.jdt.internal.compiler.ast.CompilationUnitDeclaration;
 import org.eclipse.jdt.internal.compiler.ast.TypeDeclaration;
@@ -154,7 +156,7 @@ public class JavaAstConstructor {
     }
 
     JavaToJavaScriptCompiler.checkForErrors(logger, goldenCuds, true);
-    
+
     CorrelationFactory correlator = new DummyCorrelationFactory();
     JProgram jprogram = new JProgram(correlator);
     JsProgram jsProgram = new JsProgram(correlator);
@@ -166,7 +168,7 @@ public class JavaAstConstructor {
      */
     TypeMap typeMap = new TypeMap(jprogram);
     TypeDeclaration[] allTypeDeclarations = BuildTypeMap.exec(typeMap,
-        goldenCuds, jsProgram);
+        goldenCuds, new HashSet<LooseJavaUnit>(), jsProgram);
 
     // BuildTypeMap can uncover syntactic JSNI errors; report & abort
     JavaToJavaScriptCompiler.checkForErrors(logger, goldenCuds, true);
@@ -177,8 +179,8 @@ public class JavaAstConstructor {
     // (2) Create our own Java AST from the JDT AST.
     JJSOptionsImpl options = new JJSOptionsImpl();
     options.setEnableAssertions(true);
-    GenerateJavaAST.exec(allTypeDeclarations, typeMap, jprogram, jsProgram,
-        options);
+    GenerateJavaAST.exec(allTypeDeclarations, new HashSet<LooseJavaUnit>(),
+        typeMap, jprogram, jsProgram, options);
 
     // GenerateJavaAST can uncover semantic JSNI errors; report & abort
     JavaToJavaScriptCompiler.checkForErrors(logger, goldenCuds, true);

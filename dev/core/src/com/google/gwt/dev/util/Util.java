@@ -265,6 +265,16 @@ public final class Util {
     }
   }
 
+  public static Reader createReader(TreeLogger logger, InputStream openContents)
+      throws UnableToCompleteException {
+    try {
+      return new InputStreamReader(openContents, DEFAULT_ENCODING);
+    } catch (UnsupportedEncodingException e) {
+      logger.log(TreeLogger.ERROR, "Default encoding unknown", e);
+      throw new UnableToCompleteException();
+    }
+  }
+
   public static Reader createReader(TreeLogger logger, URL url)
       throws UnableToCompleteException {
     try {
@@ -304,7 +314,7 @@ public final class Util {
     }
   }
 
-  /**
+/**
    * Escapes '&', '<', '>', '"', and '\'' to their XML entity equivalents.
    */
   public static String escapeXml(String unescaped) {
@@ -312,26 +322,26 @@ public final class Util {
     escapeXml(unescaped, 0, unescaped.length(), true, builder);
     return builder.toString();
   }
-  
-  /**
-   * Escapes '&', '<', '>', '"', and optionally ''' to their XML entity
-   * equivalents. The portion of the input string between start (inclusive) and
-   * end (exclusive) is scanned.  The output is appended to the given
-   * StringBuilder.
-   * 
-   * @param code the input String
-   * @param start the first character position to scan.
-   * @param end the character position following the last character to scan.
-   * @param quoteApostrophe if true, the &apos; character is quoted as
-   *     &amp;apos;
-   * @param builder a StringBuilder to be appended with the output.
-   */
+
+/**
+     * Escapes '&', '<', '>', '"', and optionally ''' to their XML entity
+     * equivalents. The portion of the input string between start (inclusive) and
+     * end (exclusive) is scanned.  The output is appended to the given
+     * StringBuilder.
+     * 
+     * @param code the input String
+     * @param start the first character position to scan.
+     * @param end the character position following the last character to scan.
+     * @param quoteApostrophe if true, the &apos; character is quoted as
+     *     &amp;apos;
+     * @param builder a StringBuilder to be appended with the output.
+     */
   public static void escapeXml(String code, int start, int end,
       boolean quoteApostrophe, StringBuilder builder) {
     int lastIndex = 0;
     int len = end - start;
     char[] c = new char[len];
-    
+
     code.getChars(start, end, c, 0);
     for (int i = 0; i < len; i++) {
       switch (c[i]) {
@@ -492,6 +502,22 @@ public final class Util {
     return false;
   }
 
+  // /**
+  // * Reads the file as an array of strings.
+  // */
+  // public static String[] readURLAsStrings(URL url) {
+  // ArrayList lines = new ArrayList();
+  // String contents = readURLAsString(url);
+  // if (contents != null) {
+  // StringReader sr = new StringReader(contents);
+  // BufferedReader br = new BufferedReader(sr);
+  // String line;
+  // while (null != (line = readNextLine(br)))
+  // lines.add(line);
+  // }
+  // return (String[]) lines.toArray(new String[lines.size()]);
+  // }
+
   public static boolean isValidJavaIdent(String token) {
     if (token.length() == 0) {
       return false;
@@ -509,22 +535,6 @@ public final class Util {
 
     return true;
   }
-
-  // /**
-  // * Reads the file as an array of strings.
-  // */
-  // public static String[] readURLAsStrings(URL url) {
-  // ArrayList lines = new ArrayList();
-  // String contents = readURLAsString(url);
-  // if (contents != null) {
-  // StringReader sr = new StringReader(contents);
-  // BufferedReader br = new BufferedReader(sr);
-  // String line;
-  // while (null != (line = readNextLine(br)))
-  // lines.add(line);
-  // }
-  // return (String[]) lines.toArray(new String[lines.size()]);
-  // }
 
   public static void logMissingTypeErrorWithHints(TreeLogger logger,
       String missingType) {
@@ -653,25 +663,6 @@ public final class Util {
     }
     logger.log(TreeLogger.INFO, "Unable to dump source to disk", caught);
   }
-
-  // public static byte[][] readFileAndSplit(File file) {
-  // RandomAccessFile f = null;
-  // try {
-  // f = new RandomAccessFile(file, "r");
-  // int length = f.readInt();
-  // byte[][] results = new byte[length][];
-  // for (int i = 0; i < length; i++) {
-  // int nextLength = f.readInt();
-  // results[i] = new byte[nextLength];
-  // f.read(results[i]);
-  // }
-  // return results;
-  // } catch (IOException e) {
-  // return null;
-  // } finally {
-  // Utility.close(f);
-  // }
-  // }
 
   public static byte[] readFileAsBytes(File file) {
     FileInputStream fileInputStream = null;
@@ -836,27 +827,25 @@ public final class Util {
    * 
    * @param file the file to delete, or if this is a directory, the directory
    *          that serves as the root of a recursive deletion
-   * @param childrenOnly if <code>true</code>, only the children of a
-   *          directory are recursively deleted but the specified directory
-   *          itself is spared; if <code>false</code>, the specified
-   *          directory is also deleted; ignored if <code>file</code> is not a
-   *          directory
+   * @param childrenOnly if <code>true</code>, only the children of a directory
+   *          are recursively deleted but the specified directory itself is
+   *          spared; if <code>false</code>, the specified directory is also
+   *          deleted; ignored if <code>file</code> is not a directory
    */
   public static void recursiveDelete(File file, boolean childrenOnly) {
     recursiveDelete(file, childrenOnly, null);
   }
 
   /**
-   * Selectively deletes a file or recursively deletes a directory.  Note that
-   * it is possible that files remain if file.delete() fails.
+   * Selectively deletes a file or recursively deletes a directory. Note that it
+   * is possible that files remain if file.delete() fails.
    * 
    * @param file the file to delete, or if this is a directory, the directory
    *          that serves as the root of a recursive deletion
-   * @param childrenOnly if <code>true</code>, only the children of a
-   *          directory are recursively deleted but the specified directory
-   *          itself is spared; if <code>false</code>, the specified
-   *          directory is also deleted; ignored if <code>file</code> is not a
-   *          directory
+   * @param childrenOnly if <code>true</code>, only the children of a directory
+   *          are recursively deleted but the specified directory itself is
+   *          spared; if <code>false</code>, the specified directory is also
+   *          deleted; ignored if <code>file</code> is not a directory
    * @param filter only files matching this filter will be deleted
    */
   public static void recursiveDelete(File file, boolean childrenOnly,
@@ -1278,17 +1267,11 @@ public final class Util {
       Utility.close(stream);
     }
   }
-
-  public static void writeStringToStream(OutputStream stream, String string) throws IOException {
-      Writer writer = new OutputStreamWriter(stream, DEFAULT_ENCODING);
-      writer.write(string);
-      writer.close();
-  }
   
   /**
-   * Writes the contents of a StringBuilder to an OutputStream, encoding
-   * each character using the UTF-* encoding.  Unicode characters between
-   * U+0000 and U+10FFFF are supported.
+   * Writes the contents of a StringBuilder to an OutputStream, encoding each
+   * character using the UTF-* encoding. Unicode characters between U+0000 and
+   * U+10FFFF are supported.
    */
   public static void writeUtf8(StringBuilder builder, OutputStream out)
       throws IOException {
@@ -1301,7 +1284,7 @@ public final class Util {
     int buflen = 1024;
     char[] inBuf = new char[buflen];
     byte[] outBuf = new byte[4 * buflen];
-    
+
     int length = builder.length();
     int start = 0;
 
@@ -1319,13 +1302,13 @@ public final class Util {
           int y = c >> 8;
           int x = c & 0xff;
           outBuf[index++] = (byte) (0xc0 | (y << 2) | (x >> 6)); // 110yyyxx
-          outBuf[index++] = (byte) (0x80 | (x & 0x3f));          // 10xxxxxx
+          outBuf[index++] = (byte) (0x80 | (x & 0x3f)); // 10xxxxxx
         } else if (c < 0xD800 || c > 0xDFFF) {
           int y = (c >> 8) & 0xff;
           int x = c & 0xff;
-          outBuf[index++] = (byte) (0xe0 | (y >> 4));            // 1110yyyy
+          outBuf[index++] = (byte) (0xe0 | (y >> 4)); // 1110yyyy
           outBuf[index++] = (byte) (0x80 | ((y << 2) & 0x3c) | (x >> 6)); // 10yyyyxx
-          outBuf[index++] = (byte) (0x80 | (x & 0x3f));          // 10xxxxxx
+          outBuf[index++] = (byte) (0x80 | (x & 0x3f)); // 10xxxxxx
         } else {
           // Ignore if no second character (which is not be legal unicode)
           if (i + 1 < len) {
@@ -1341,48 +1324,22 @@ public final class Util {
             outBuf[index++] = (byte) (0x80 | ((z << 4) & 0x30) | (y >> 4));
             outBuf[index++] = (byte) (0x80 | ((y << 2) & 0x3c) | (x >> 6));
             outBuf[index++] = (byte) (0x80 | (x & 0x3f));
-            
+
             i++; // char has been consumed
           }
         }
       }
       out.write(outBuf, 0, index);
       start = end;
-    } 
+    }
   }
-
-  // /**
-  // * Write all of the supplied bytes to the file, in a way that they can be
-  // read
-  // * back by {@link #readFileAndSplit(File).
-  // */
-  // public static boolean writeStringsAsFile(TreeLogger branch,
-  // File makePermFilename, String[] js) {
-  // RandomAccessFile f = null;
-  // try {
-  // makePermFilename.delete();
-  // makePermFilename.getParentFile().mkdirs();
-  // f = new RandomAccessFile(makePermFilename, "rwd");
-  // f.writeInt(js.length);
-  // for (String s : js) {
-  // byte[] b = getBytes(s);
-  // f.writeInt(b.length);
-  // f.write(b);
-  // }
-  // return true;
-  // } catch (IOException e) {
-  // return false;
-  // } finally {
-  // Utility.close(f);
-  // }
-  // }
 
   /**
    * Reads the specified number of bytes from the {@link InputStream}.
    * 
    * @param byteLength number of bytes to read
-   * @return byte array containing the bytes read or <code>null</code> if
-   *         there is an {@link IOException} or if the requested number of bytes
+   * @return byte array containing the bytes read or <code>null</code> if there
+   *         is an {@link IOException} or if the requested number of bytes
    *         cannot be read from the {@link InputStream}
    */
   private static byte[] readBytesFromInputStream(InputStream input,
@@ -1535,5 +1492,4 @@ public final class Util {
    */
   private Util() {
   }
-
 }
