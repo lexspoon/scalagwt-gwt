@@ -20,7 +20,7 @@ import com.google.gwt.core.ext.UnableToCompleteException;
 import com.google.gwt.dev.javac.CompilationState;
 import com.google.gwt.dev.javac.impl.JavaResourceBase;
 import com.google.gwt.dev.javac.impl.MockJavaResource;
-import com.google.gwt.dev.javac.jribble.LooseJavaUnit;
+import com.google.gwt.dev.javac.jribble.JribbleUnit;
 import com.google.gwt.dev.jdt.BasicWebModeCompiler;
 import com.google.gwt.dev.jdt.FindDeferredBindingSitesVisitor;
 import com.google.gwt.dev.jjs.CorrelationFactory.DummyCorrelationFactory;
@@ -168,7 +168,7 @@ public class JavaAstConstructor {
      */
     TypeMap typeMap = new TypeMap(jprogram);
     TypeDeclaration[] allTypeDeclarations = BuildTypeMap.exec(typeMap,
-        goldenCuds, new HashSet<LooseJavaUnit>(), jsProgram);
+        goldenCuds, new HashSet<JribbleUnit>(), jsProgram);
 
     // BuildTypeMap can uncover syntactic JSNI errors; report & abort
     JavaToJavaScriptCompiler.checkForErrors(logger, goldenCuds, true);
@@ -179,7 +179,7 @@ public class JavaAstConstructor {
     // (2) Create our own Java AST from the JDT AST.
     JJSOptionsImpl options = new JJSOptionsImpl();
     options.setEnableAssertions(true);
-    GenerateJavaAST.exec(allTypeDeclarations, new HashSet<LooseJavaUnit>(),
+    GenerateJavaAST.exec(allTypeDeclarations, new HashSet<JribbleUnit>(),
         typeMap, jprogram, jsProgram, options);
 
     // GenerateJavaAST can uncover semantic JSNI errors; report & abort

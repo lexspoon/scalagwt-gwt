@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.google.gwt.dev.javac.ljava.ast;
+package com.google.gwt.dev.javac.jribble.ast;
 
 import java.io.Serializable;
 

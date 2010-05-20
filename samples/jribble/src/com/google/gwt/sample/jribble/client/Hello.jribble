@@ -1,0 +1,8 @@
+public class com.google.gwt.sample.jribble.client.Hello extends java.lang.Object {
+  public Hello() {
+  }
+
+  public void onModuleLoad() {
+    (class com.google.gwt.user.client.Window).alert(Ljava/lang/String;)V("Hello, world!");
+  }
+}

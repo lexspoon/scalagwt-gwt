@@ -36,9 +36,9 @@ import com.google.gwt.core.linker.SoycReportLinker;
 import com.google.gwt.dev.Permutation;
 import com.google.gwt.dev.cfg.ModuleDef;
 import com.google.gwt.dev.javac.CompilationState;
-import com.google.gwt.dev.javac.jribble.LooseJavaUnit;
-import com.google.gwt.dev.javac.ljava.ast.JribMethodCall;
-import com.google.gwt.dev.javac.ljava.ast.JribVisitor;
+import com.google.gwt.dev.javac.jribble.JribbleUnit;
+import com.google.gwt.dev.javac.jribble.ast.JribMethodCall;
+import com.google.gwt.dev.javac.jribble.ast.JribVisitor;
 import com.google.gwt.dev.jdt.RebindPermutationOracle;
 import com.google.gwt.dev.jdt.WebModeCompilerFrontEnd;
 import com.google.gwt.dev.jjs.CorrelationFactory.DummyCorrelationFactory;
@@ -913,7 +913,7 @@ public class JavaToJavaScriptCompiler {
     }
     FindRefs findRefs = new FindRefs();
 
-    for (LooseJavaUnit unit : compilationState.getLooseJavaUnits()) {
+    for (JribbleUnit unit : compilationState.getLooseJavaUnits()) {
       findRefs.accept(unit.getSyntaxTree());
     }
     return findRefs.refs;

@@ -20,8 +20,8 @@ import com.google.gwt.core.ext.UnableToCompleteException;
 import com.google.gwt.dev.javac.CompilationUnitBuilder.GeneratedCompilationUnitBuilder;
 import com.google.gwt.dev.javac.CompilationUnitBuilder.ResourceCompilationUnitBuilder;
 import com.google.gwt.dev.javac.JdtCompiler.UnitProcessor;
-import com.google.gwt.dev.javac.jribble.LooseJavaParser;
-import com.google.gwt.dev.javac.jribble.LooseJavaUnit;
+import com.google.gwt.dev.javac.jribble.JribbleParser;
+import com.google.gwt.dev.javac.jribble.JribbleUnit;
 import com.google.gwt.dev.jjs.ast.JClassType;
 import com.google.gwt.dev.js.ast.JsProgram;
 import com.google.gwt.dev.resource.Resource;
@@ -254,6 +254,9 @@ public class CompilationStateBuilder {
 
     // For each incoming Java source file...
     for (Resource resource : resources) {
+      if (isJribbleFile(resource)) {
+        continue;
+      }
       // Try to get an existing unit from the cache.
       String location = resource.getLocation();
       ResourceTag tag = resourceContentCache.get(location);
@@ -274,6 +277,9 @@ public class CompilationStateBuilder {
     CompileMoreLater compileMoreLater = new CompileMoreLater();
     List<CompilationUnitBuilder> builders = new ArrayList<CompilationUnitBuilder>();
     for (Resource resource : resources) {
+      if (isJribbleFile(resource)) {
+        continue;
+      }
       String typeName = Shared.toTypeName(resource.getPath());
       CompilationUnit validUnit = resultUnits.get(typeName);
       if (validUnit != null) {
@@ -293,24 +299,28 @@ public class CompilationStateBuilder {
         resources),compileMoreLater);
   }
 
-  private Iterable<LooseJavaUnit> parseAllLooseJava(TreeLogger logger,
+  private Iterable<JribbleUnit> parseAllLooseJava(TreeLogger logger,
       Iterable<Resource> sources) {
-    List<LooseJavaUnit> units = new ArrayList<LooseJavaUnit>();
+    List<JribbleUnit> units = new ArrayList<JribbleUnit>();
     for (Resource source : sources) {
-      if (!source.getPath().endsWith(".ljava")) {
+      if (!isJribbleFile(source)) {
         continue;
       }
       JClassType ast;
       try {
-        ast = LooseJavaParser.parse(Util.createReader(logger,
+        ast = JribbleParser.parse(Util.createReader(logger,
             source.openContents()));
       } catch (UnableToCompleteException e) {
         // bad unit; skip it
         continue;
       }
-      units.add(new LooseJavaUnit(ast.getName(), ast));
+      units.add(new JribbleUnit(ast.getName(), ast));
     }
     return units;
+  }
+
+  private boolean isJribbleFile(Resource source) {
+    return source.getPath().endsWith(".jribble");
   }
   /**
    * Compile new generated units into an existing state.

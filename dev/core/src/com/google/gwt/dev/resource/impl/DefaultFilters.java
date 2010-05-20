@@ -405,6 +405,6 @@ public class DefaultFilters {
   }
 
   private boolean isJavaFile(String path) {
-    return path.endsWith(".java") || path.endsWith(".ljava");
+    return path.endsWith(".java") || path.endsWith(".jribble");
   }
 }

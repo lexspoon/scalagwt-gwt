@@ -16,8 +16,8 @@
 package com.google.gwt.dev.jjs.impl;
 
 import com.google.gwt.dev.javac.JsniCollector;
-import com.google.gwt.dev.javac.jribble.LooseJavaUnit;
-import com.google.gwt.dev.javac.ljava.ast.JribMethodCall;
+import com.google.gwt.dev.javac.jribble.JribbleUnit;
+import com.google.gwt.dev.javac.jribble.ast.JribMethodCall;
 import com.google.gwt.dev.jjs.HasSourceInfo;
 import com.google.gwt.dev.jjs.InternalCompilerException;
 import com.google.gwt.dev.jjs.JJSOptions;
@@ -2983,16 +2983,16 @@ public class GenerateJavaAST {
   }
 
   /**
-   * Converts Loose Java nodes into Java nodes and installes them in a supplied
+   * Converts Loose Java nodes into Java nodes and installs them in a supplied
    * JProgram.
    */
-  private static class LooseJavaConverter {
+  private static class JribbleConverter {
     private JMethod currentMethod;
     private JDeclaredType currentType;
     private final JProgram program;
     private final TypeMap typeMap;
 
-    public LooseJavaConverter(JProgram program, TypeMap typeMap) {
+    public JribbleConverter(JProgram program, TypeMap typeMap) {
       this.program = program;
       this.typeMap = typeMap;
     }
@@ -3082,7 +3082,7 @@ public class GenerateJavaAST {
    * a JProgram structure.
    */
   public static void exec(TypeDeclaration[] types,
-      Iterable<LooseJavaUnit> looseJavaUnits, TypeMap typeMap,
+      Iterable<JribbleUnit> looseJavaUnits, TypeMap typeMap,
       JProgram jprogram, JsProgram jsProgram, JJSOptions options) {
     // Construct the basic AST.
     JavaASTGenerationVisitor v = new JavaASTGenerationVisitor(typeMap,
@@ -3094,8 +3094,8 @@ public class GenerateJavaAST {
       v.addBridgeMethods(type.binding);
     }
 
-    LooseJavaConverter looseJavaProc = new LooseJavaConverter(jprogram, typeMap);
-    for (LooseJavaUnit unit : looseJavaUnits) {
+    JribbleConverter looseJavaProc = new JribbleConverter(jprogram, typeMap);
+    for (JribbleUnit unit : looseJavaUnits) {
       looseJavaProc.process(unit.getSyntaxTree());
     }
 

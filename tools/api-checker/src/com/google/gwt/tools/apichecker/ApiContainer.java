@@ -27,7 +27,7 @@ import com.google.gwt.dev.javac.CompilationUnitBuilder;
 import com.google.gwt.dev.javac.CompilationUnitInvalidator;
 import com.google.gwt.dev.javac.JdtCompiler;
 import com.google.gwt.dev.javac.TypeOracleMediator;
-import com.google.gwt.dev.javac.jribble.LooseJavaUnit;
+import com.google.gwt.dev.javac.jribble.JribbleUnit;
 import com.google.gwt.dev.resource.Resource;
 
 import java.util.ArrayList;
@@ -204,7 +204,7 @@ public final class ApiContainer {
     }
 
     TypeOracleMediator mediator = new TypeOracleMediator();
-    mediator.addNewUnits(logger, units, new HashSet<LooseJavaUnit>());
+    mediator.addNewUnits(logger, units, new HashSet<JribbleUnit>());
     logger.log(TreeLogger.INFO, "API " + name
         + ", Finished with building typeOracle, added " + units.size()
         + " files", null);

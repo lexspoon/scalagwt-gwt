@@ -18,7 +18,7 @@ package com.google.gwt.dev.javac;
 import com.google.gwt.core.ext.TreeLogger;
 import com.google.gwt.core.ext.typeinfo.TypeOracle;
 import com.google.gwt.dev.javac.CompilationStateBuilder.CompileMoreLater;
-import com.google.gwt.dev.javac.jribble.LooseJavaUnit;
+import com.google.gwt.dev.javac.jribble.JribbleUnit;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -72,7 +72,7 @@ public class CompilationState {
   /**
    * Loose Java units that are part of this compilation.
    */
-  private Iterable<LooseJavaUnit> looseJavaUnits;
+  private Iterable<JribbleUnit> looseJavaUnits;
 
   /**
    * Controls our type oracle.
@@ -80,10 +80,10 @@ public class CompilationState {
   private final TypeOracleMediator mediator = new TypeOracleMediator();
 
   CompilationState(TreeLogger logger, Collection<CompilationUnit> units,
-      Iterable<LooseJavaUnit> looseJavaUnits, CompileMoreLater compileMoreLater) {
+      Iterable<JribbleUnit> looseJavaUnits, CompileMoreLater compileMoreLater) {
     this.compileMoreLater = compileMoreLater;
     this.looseJavaUnits = looseJavaUnits;
-    assimilateUnits(logger, units);
+    assimilateUnits(logger, units, looseJavaUnits);
   }
 
   public void addGeneratedCompilationUnits(TreeLogger logger,
@@ -92,7 +92,7 @@ public class CompilationState {
         + "' new generated units");
     Collection<CompilationUnit> newUnits = compileMoreLater.addGeneratedTypes(
         logger, generatedUnits);
-    assimilateUnits(logger, newUnits);
+    assimilateUnits(logger, newUnits, new HashSet<JribbleUnit>());
   }
 
   /**
@@ -126,7 +126,7 @@ public class CompilationState {
 
   public boolean isLooseJavaType(String seedTypeName) {
     // TODO(spoon, grek) make a set to hold these names
-    for (LooseJavaUnit unit : looseJavaUnits) {
+    for (JribbleUnit unit : looseJavaUnits) {
       if (unit.getName().equals(seedTypeName)) {
         return true;
       }
@@ -134,7 +134,7 @@ public class CompilationState {
     return false;
   }
 
-  public Iterable<LooseJavaUnit> getLooseJavaUnits() {
+  public Iterable<JribbleUnit> getLooseJavaUnits() {
     return looseJavaUnits;
   }
 
@@ -143,7 +143,7 @@ public class CompilationState {
   }
 
   private void assimilateUnits(TreeLogger logger,
-      Collection<CompilationUnit> units) {
+      Collection<CompilationUnit> units, Iterable<JribbleUnit> jribbleUnits) {
     for (CompilationUnit unit : units) {
       unitMap.put(unit.getTypeName(), unit);
       if (unit.isCompiled()) {
@@ -153,6 +153,6 @@ public class CompilationState {
         }
       }
     }
-    mediator.addNewUnits(logger, units, new HashSet<LooseJavaUnit>());
+    mediator.addNewUnits(logger, units, jribbleUnits);
   }
 }

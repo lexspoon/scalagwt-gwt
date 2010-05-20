@@ -17,8 +17,8 @@ package com.google.gwt.dev.javac.jribble;
 
 import static com.google.gwt.dev.jjs.SourceOrigin.UNKNOWN;
 
-import com.google.gwt.dev.javac.ljava.ast.JribMethodCall;
-import com.google.gwt.dev.javac.ljava.ast.JribMethodRef;
+import com.google.gwt.dev.javac.jribble.ast.JribMethodCall;
+import com.google.gwt.dev.javac.jribble.ast.JribMethodRef;
 import com.google.gwt.dev.jjs.ast.JBlock;
 import com.google.gwt.dev.jjs.ast.JClassType;
 import com.google.gwt.dev.jjs.ast.JExpression;
@@ -36,22 +36,15 @@ import java.util.List;
  * 
  * TODO(grek) implement a real parser
  */
-public class LooseJavaParser {
+public class JribbleParser {
 
   public static JClassType parse(Reader source) {
     // Create a throw-away program because some AST nodes need one
     JProgram program = new JProgram();
 
     JClassType sillyClass = new JClassType(UNKNOWN,
-        "com.google.gwt.sample.hello.client.Silly", false, false);
-    {
-      // constructor method TODO(spoon) make it a JConstructor
-      JMethod constructor = new JMethod(UNKNOWN, "Silly", sillyClass,
-          JPrimitiveType.VOID, false, false, false, false);
-      JMethodBody methodBody = new JMethodBody(UNKNOWN);
-      constructor.setBody(methodBody);
-      sillyClass.addMethod(constructor);
-    }
+        "com.google.gwt.sample.jribble.client.Hello", false, false);
+    program.createConstructor(UNKNOWN, sillyClass);
 
     {
       // onModuleLoad() method

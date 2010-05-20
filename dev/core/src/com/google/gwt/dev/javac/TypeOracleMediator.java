@@ -53,7 +53,7 @@ import com.google.gwt.dev.javac.asm.ResolveMethodSignature;
 import com.google.gwt.dev.javac.asm.ResolveTypeSignature;
 import com.google.gwt.dev.javac.asm.CollectAnnotationData.AnnotationData;
 import com.google.gwt.dev.javac.asm.CollectClassData.AnnotationEnum;
-import com.google.gwt.dev.javac.jribble.LooseJavaUnit;
+import com.google.gwt.dev.javac.jribble.JribbleUnit;
 import com.google.gwt.dev.jjs.ast.JInterfaceType;
 import com.google.gwt.dev.util.Name;
 import com.google.gwt.dev.util.PerfLogger;
@@ -293,7 +293,7 @@ public class TypeOracleMediator {
    * @param units collection of compilation units to process
    */
   public void addNewUnits(TreeLogger logger, Collection<CompilationUnit> units,
-      Iterable<LooseJavaUnit> looseJavaUnits) {
+      Iterable<JribbleUnit> looseJavaUnits) {
     PerfLogger.start("TypeOracleMediator.addNewUnits");
     // First collect all class data.
     classMap = new HashMap<String, CollectClassData>();
@@ -312,14 +312,14 @@ public class TypeOracleMediator {
       }
     }
 
-    for (LooseJavaUnit unit : looseJavaUnits) {
+    for (JribbleUnit unit : looseJavaUnits) {
       String fullName = unit.getName();
       String packageName;
       String shortName;
       int period = fullName.lastIndexOf('.');
       if (period > 0) {
         packageName = fullName.substring(0, period);
-        shortName = fullName.substring(period);
+        shortName = fullName.substring(period + 1);
       } else {
         packageName = "";
         shortName = fullName;

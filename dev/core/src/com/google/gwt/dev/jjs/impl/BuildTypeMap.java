@@ -16,7 +16,7 @@
 package com.google.gwt.dev.jjs.impl;
 
 import com.google.gwt.dev.javac.JsniCollector;
-import com.google.gwt.dev.javac.jribble.LooseJavaUnit;
+import com.google.gwt.dev.javac.jribble.JribbleUnit;
 import com.google.gwt.dev.jjs.HasSourceInfo;
 import com.google.gwt.dev.jjs.InternalCompilerException;
 import com.google.gwt.dev.jjs.SourceInfo;
@@ -94,12 +94,12 @@ import java.util.Set;
  */
 public class BuildTypeMap {
 
-  public static class BuildDeclMapForLooseJavaVisitor extends JVisitor {
+  public static class BuildDeclMapForJribbleVisitor extends JVisitor {
     private final JProgram program;
     private final TypeMap typeMap;
     private JDeclaredType currentType;
 
-    public BuildDeclMapForLooseJavaVisitor(TypeMap typeMap) {
+    public BuildDeclMapForJribbleVisitor(TypeMap typeMap) {
       this.typeMap = typeMap;
       program = this.typeMap.getProgram();
     }
@@ -129,10 +129,17 @@ public class BuildTypeMap {
 
     @Override
     public boolean visit(JMethod method, Context ctx) {
-      JMethod newMethod = program.createMethod(method.getSourceInfo(),
-          method.getName(), currentType, typeMap.get(method.getType()),
-          method.isAbstract(), method.isStatic(), method.isFinal(),
-          method.isPrivate(), method.isNative());
+      JMethod newMethod;
+
+      if (method instanceof JConstructor) {
+        newMethod = program.createConstructor(method.getSourceInfo(),
+            (JClassType) currentType);
+      } else {
+        newMethod = program.createMethod(method.getSourceInfo(),
+            method.getName(), currentType, typeMap.get(method.getType()),
+            method.isAbstract(), method.isStatic(), method.isFinal(),
+            method.isPrivate(), method.isNative());
+      }
       for (JParameter param : method.getParams()) {
         JProgram.createParameter(param.getSourceInfo(), param.getName(),
             typeMap.get(param.getType()), param.isFinal(), false, newMethod);
@@ -145,12 +152,12 @@ public class BuildTypeMap {
     }
   }
 
-  public static class BuildTypeMapForLooseJavaVisitor extends JVisitor {
+  public static class BuildTypeMapForJribbleVisitor extends JVisitor {
 
     private final JProgram program;
     private final TypeMap typeMap;
 
-    public BuildTypeMapForLooseJavaVisitor(TypeMap typeMap) {
+    public BuildTypeMapForJribbleVisitor(TypeMap typeMap) {
       this.typeMap = typeMap;
       program = this.typeMap.getProgram();
     }
@@ -957,7 +964,7 @@ public class BuildTypeMap {
 
   public static TypeDeclaration[] exec(TypeMap typeMap,
       CompilationUnitDeclaration[] unitDecls,
-      Iterable<LooseJavaUnit> looseJavaUnits, JsProgram jsProgram) {
+      Iterable<JribbleUnit> looseJavaUnits, JsProgram jsProgram) {
     createPeersForTypes(unitDecls, looseJavaUnits, typeMap);
     return createPeersForNonTypeDecls(unitDecls, looseJavaUnits, typeMap,
         jsProgram);
@@ -1001,8 +1008,7 @@ public class BuildTypeMap {
 
   private static TypeDeclaration[] createPeersForNonTypeDecls(
       CompilationUnitDeclaration[] unitDecls,
-      Iterable<LooseJavaUnit> looseJavaUnits, TypeMap typeMap,
-      JsProgram jsProgram) {
+      Iterable<JribbleUnit> looseJavaUnits, TypeMap typeMap, JsProgram jsProgram) {
     // Traverse again to create our JNode peers for each method, field,
     // parameter, and local
     BuildDeclMapVisitor v2 = new BuildDeclMapVisitor(typeMap, jsProgram);
@@ -1010,8 +1016,8 @@ public class BuildTypeMap {
       unitDecls[i].traverse(v2, unitDecls[i].scope);
     }
 
-    JVisitor v2b = new BuildDeclMapForLooseJavaVisitor(typeMap);
-    for (LooseJavaUnit unit : looseJavaUnits) {
+    JVisitor v2b = new BuildDeclMapForJribbleVisitor(typeMap);
+    for (JribbleUnit unit : looseJavaUnits) {
       v2b.accept(unit.getSyntaxTree());
     }
 
@@ -1020,15 +1026,15 @@ public class BuildTypeMap {
 
   private static void createPeersForTypes(
       CompilationUnitDeclaration[] unitDecls,
-      Iterable<LooseJavaUnit> looseJavaUnits, TypeMap typeMap) {
+      Iterable<JribbleUnit> looseJavaUnits, TypeMap typeMap) {
     // Traverse once to create our JNode peers for each type
     BuildTypeMapVisitor v1 = new BuildTypeMapVisitor(typeMap);
     for (int i = 0; i < unitDecls.length; ++i) {
       unitDecls[i].traverse(v1, unitDecls[i].scope);
     }
 
-    JVisitor v1b = new BuildTypeMapForLooseJavaVisitor(typeMap);
-    for (LooseJavaUnit unit : looseJavaUnits) {
+    JVisitor v1b = new BuildTypeMapForJribbleVisitor(typeMap);
+    for (JribbleUnit unit : looseJavaUnits) {
       v1b.accept(unit.getSyntaxTree());
     }
   }

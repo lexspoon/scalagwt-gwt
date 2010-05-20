@@ -19,13 +19,13 @@ import com.google.gwt.dev.jjs.ast.JClassType;
 import com.google.gwt.dev.jjs.ast.JDeclaredType;
 
 /**
- * A compiled LooseJava unit. It corresponds to one Java class.
+ * A compiled unit of Jribble code. It corresponds to one Java class.
  */
-public class LooseJavaUnit {
+public class JribbleUnit {
   private final String name;
   private final JClassType syntaxTree;
 
-  public LooseJavaUnit(String name, JClassType syntaxTree) {
+  public JribbleUnit(String name, JClassType syntaxTree) {
     this.name = name;
     this.syntaxTree = syntaxTree;
   }

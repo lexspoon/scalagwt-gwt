@@ -18,7 +18,7 @@ package com.google.gwt.dev.javac;
 import com.google.gwt.core.ext.TreeLogger;
 import com.google.gwt.core.ext.typeinfo.TypeOracle;
 import com.google.gwt.dev.javac.impl.JavaResourceBase;
-import com.google.gwt.dev.javac.jribble.LooseJavaUnit;
+import com.google.gwt.dev.javac.jribble.JribbleUnit;
 import com.google.gwt.dev.resource.Resource;
 
 import java.util.Arrays;
@@ -79,7 +79,7 @@ public class TypeOracleTestingUtils {
     CompilationState state = CompilationStateBuilder.buildFrom(logger,
         resources);
     mediator.addNewUnits(logger, state.getCompilationUnits(),
-        new HashSet<LooseJavaUnit>());
+        new HashSet<JribbleUnit>());
   }
 
   /**
