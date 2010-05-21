@@ -29,6 +29,7 @@
   <target name="-do" description="Run all subprojects" >
     <antcall target="dynatable" />
     <antcall target="hello" />
+    <antcall target="jribble" />
     <antcall target="json" />
     <antcall target="mail" />
     <antcall target="showcase" />

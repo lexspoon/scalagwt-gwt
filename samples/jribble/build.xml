@@ -1,0 +1,5 @@
+<project name="jribble" default="build" basedir=".">
+  <property name="sample.root" value="jribble" />
+  <property name="sample.module" value="Jribble" />
+  <import file="../common.ant.xml" />
+</project>
