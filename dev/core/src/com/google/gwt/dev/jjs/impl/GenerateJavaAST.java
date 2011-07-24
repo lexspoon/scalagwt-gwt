@@ -18,6 +18,8 @@ package com.google.gwt.dev.jjs.impl;
 import com.google.gwt.dev.javac.JsniCollector;
 import com.google.gwt.dev.javac.jribble.JribbleUnit;
 import com.google.gwt.dev.javac.jribble.ast.JribMethodCall;
+import com.google.gwt.dev.javac.jribble.ast.JribMethodRef;
+import com.google.gwt.dev.javac.jribble.ast.JribNewInstance;
 import com.google.gwt.dev.jjs.HasSourceInfo;
 import com.google.gwt.dev.jjs.InternalCompilerException;
 import com.google.gwt.dev.jjs.JJSOptions;
@@ -84,6 +86,7 @@ import com.google.gwt.dev.jjs.ast.JReturnStatement;
 import com.google.gwt.dev.jjs.ast.JStatement;
 import com.google.gwt.dev.jjs.ast.JStringLiteral;
 import com.google.gwt.dev.jjs.ast.JSwitchStatement;
+import com.google.gwt.dev.jjs.ast.JThisRef;
 import com.google.gwt.dev.jjs.ast.JThrowStatement;
 import com.google.gwt.dev.jjs.ast.JTryStatement;
 import com.google.gwt.dev.jjs.ast.JType;
@@ -458,7 +461,7 @@ public class GenerateJavaAST {
             // Just use JavaScriptObject's implementation for all subclasses.
             currentClass.getMethods().remove(2);
           } else {
-            tryFindUpRefs(method);
+            tryFindUpRefsNonJdt(method);
             implementMethod(method, program.getLiteralClass(currentClass));
           }
         }
@@ -2077,7 +2080,7 @@ public class GenerateJavaAST {
 
       // Add overrides.
       List<JMethod> overrides = new ArrayList<JMethod>();
-      tryFindUpRefs(bridgeMethod, overrides);
+      tryFindUpRefsNonJdt(bridgeMethod, overrides);
       assert !overrides.isEmpty();
       for (JMethod over : overrides) {
         bridgeMethod.addOverride(over);
@@ -2632,22 +2635,6 @@ public class GenerateJavaAST {
     }
 
     /**
-     * For a given method, try to find all methods that it overrides/implements.
-     * This version does not use JDT.
-     */
-    private void tryFindUpRefs(JMethod method) {
-      List<JMethod> overrides = new ArrayList<JMethod>();
-      tryFindUpRefs(method, overrides);
-      method.addOverrides(overrides);
-    }
-
-    private void tryFindUpRefs(JMethod method, List<JMethod> overrides) {
-      if (method.getEnclosingType() != null) {
-        tryFindUpRefsRecursive(method, method.getEnclosingType(), overrides);
-      }
-    }
-
-    /**
      * For a given method(and method binding), try to find all methods that it
      * overrides/implements.
      */
@@ -2656,37 +2643,7 @@ public class GenerateJavaAST {
       assert binding == binding.original();
       tryFindUpRefsRecursive(method, binding, binding.declaringClass);
     }
-
-    /**
-     * For a given method(and method binding), recursively try to find all
-     * methods that it overrides/implements.
-     */
-    private void tryFindUpRefsRecursive(JMethod method,
-        JDeclaredType searchThisType, List<JMethod> overrides) {
-
-      // See if this class has any uprefs, unless this class is myself
-      if (method.getEnclosingType() != searchThisType) {
-        for (JMethod upRef : searchThisType.getMethods()) {
-          if (JTypeOracle.methodsDoMatch(method, upRef)
-              && !overrides.contains(upRef)) {
-            overrides.add(upRef);
-            break;
-          }
-        }
-      }
-
-      // recurse super class
-      if (searchThisType.getSuperClass() != null) {
-        tryFindUpRefsRecursive(method, searchThisType.getSuperClass(),
-            overrides);
-      }
-
-      // recurse super interfaces
-      for (JInterfaceType intf : searchThisType.getImplements()) {
-        tryFindUpRefsRecursive(method, intf, overrides);
-      }
-    }
-
+    
     /**
      * For a given method(and method binding), recursively try to find all
      * methods that it overrides/implements.
@@ -2988,7 +2945,6 @@ public class GenerateJavaAST {
    */
   private static class JribbleConverter {
     private JMethod currentMethod;
-    private JDeclaredType currentType;
     private final JProgram program;
     private final TypeMap typeMap;
 
@@ -2998,17 +2954,9 @@ public class GenerateJavaAST {
     }
 
     public void process(JDeclaredType type) {
-      JDeclaredType newType = typeMap.get(type);
-
-      currentType = newType;
-
       for (JMethod method : type.getMethods()) {
         process(method);
       }
-
-      // TODO(spoon,grek) process supertype, interfaces
-
-      currentType = null;
     }
 
     private JExpression convert(JExpression expr) {
@@ -3024,17 +2972,65 @@ public class GenerateJavaAST {
       if (expr instanceof JribMethodCall) {
         JribMethodCall methodCall = (JribMethodCall) expr;
         JExpression newInstance = convert(methodCall.getInstance());
+        JribMethodRef methodRef = methodCall.getMethodRef();
         JMethod newTarget = typeMap.getMethod(
-            methodCall.getMethodRef().getTypeName(),
-            methodCall.getMethodRef().getMethodJsniSignature());
+            methodRef.getTypeName(),
+            methodRef.getMethodJsniSignature());
         JMethodCall newMethodCall = new JMethodCall(methodCall.getSourceInfo(),
             newInstance, newTarget);
 
         for (JExpression arg : methodCall.getArguments()) {
           newMethodCall.addArg(convert(arg));
         }
+        
+        if (newTarget instanceof JConstructor) {
+          newMethodCall.setStaticDispatchOnly();
+        }
 
         return newMethodCall;
+      }
+      
+
+      if (expr instanceof JribNewInstance) {
+        JribNewInstance newInst = (JribNewInstance) expr;
+        JConstructor newTarget = (JConstructor) typeMap.getMethod(
+            newInst.getConstructorRef().getTypeName(),
+            newInst.getConstructorRef().getMethodJsniSignature());
+        JNewInstance newInstance = new JNewInstance(newInst.getSourceInfo(), newTarget, newTarget.getEnclosingType());
+
+        for (JExpression arg : newInst.getArguments()) {
+          newInstance.addArg(convert(arg));
+        }
+
+        return newInstance;
+      }
+      
+      if (expr instanceof JLocalRef) {
+        JLocalRef oldRef = (JLocalRef) expr;
+        JMethodBody body = (JMethodBody) currentMethod.getBody();
+        JLocal local = null;
+        for (JLocal loc : body.getLocals()) {
+          if (loc.getName().equals(oldRef.getLocal().getName())) {
+            local = loc;
+          }
+        }
+        if (local == null) {
+          throw new InternalCompilerException("Could not find  local variable " + oldRef.getLocal().getName());
+        }
+        return new JLocalRef(oldRef.getSourceInfo(), local);
+      }
+      
+      if (expr instanceof JThisRef) {
+        JThisRef oldThis = (JThisRef) expr;
+        JDeclaredType newType = typeMap.get((JDeclaredType) oldThis.getType().getUnderlyingType());
+        return new JThisRef(oldThis.getSourceInfo(), program.getNonNullType(newType));
+      }
+      
+      if (expr instanceof JBinaryOperation) {
+        JBinaryOperation oldBinary = (JBinaryOperation) expr;
+        return new JBinaryOperation(oldBinary.getSourceInfo(),
+            typeMap.get(oldBinary.getType()), oldBinary.getOp(),
+            convert(oldBinary.getLhs()), convert(oldBinary.getRhs()));
       }
 
       throw new UnknownNodeSubtype(expr);
@@ -3047,6 +3043,25 @@ public class GenerateJavaAST {
         JExpressionStatement statExpr = (JExpressionStatement) stat;
         JExpression newExpr = convert(statExpr.getExpr());
         return newExpr.makeStatement();
+      }
+      
+      if (stat instanceof JBlock) {
+        JBlock oldBlock = (JBlock) stat;
+        JBlock newBlock = new JBlock(oldBlock.getSourceInfo());
+        for (JStatement stmt : oldBlock.getStatements()) {
+          newBlock.addStmt(convert(stmt));
+        }
+        return newBlock;
+      }
+      
+      if (stat instanceof JDeclarationStatement) {
+        JDeclarationStatement oldDecl = (JDeclarationStatement) stat;
+        JExpression newInitializer = null;
+        if (oldDecl.getInitializer() != null) {
+          newInitializer = convert(oldDecl.getInitializer());
+        }
+        return new JDeclarationStatement(
+            oldDecl.getSourceInfo(), oldDecl.getVariableRef(), newInitializer);
       }
 
       throw new UnknownNodeSubtype(stat);
@@ -3074,6 +3089,10 @@ public class GenerateJavaAST {
       }
 
       currentMethod = null;
+      
+      if (method.canBePolymorphic() && !(method instanceof JConstructor)) {
+        tryFindUpRefsNonJdt(newMethod);
+      }
     }
   }
 
@@ -3137,4 +3156,51 @@ public class GenerateJavaAST {
     }
     return false;
   }
+  
+  /**
+   * For a given method, try to find all methods that it overrides/implements.
+   * This version does not use JDT.
+   */
+  private static void tryFindUpRefsNonJdt(JMethod method) {
+    List<JMethod> overrides = new ArrayList<JMethod>();
+    tryFindUpRefsNonJdt(method, overrides);
+    method.addOverrides(overrides);
+  }
+
+  private static void tryFindUpRefsNonJdt(JMethod method, List<JMethod> overrides) {
+    if (method.getEnclosingType() != null) {
+      tryFindUpRefsNonJdtRecursive(method, method.getEnclosingType(), overrides);
+    }
+  }
+
+  /**
+   * For a given method(and method binding), recursively try to find all
+   * methods that it overrides/implements.
+   */
+  private static void tryFindUpRefsNonJdtRecursive(JMethod method,
+      JDeclaredType searchThisType, List<JMethod> overrides) {
+
+    // See if this class has any uprefs, unless this class is myself
+    if (method.getEnclosingType() != searchThisType) {
+      for (JMethod upRef : searchThisType.getMethods()) {
+        if (JTypeOracle.methodsDoMatch(method, upRef)
+            && !overrides.contains(upRef)) {
+          overrides.add(upRef);
+          break;
+        }
+      }
+    }
+
+    // recurse super class
+    if (searchThisType.getSuperClass() != null) {
+      tryFindUpRefsNonJdtRecursive(method, searchThisType.getSuperClass(),
+          overrides);
+    }
+
+    // recurse super interfaces
+    for (JInterfaceType intf : searchThisType.getImplements()) {
+      tryFindUpRefsNonJdtRecursive(method, intf, overrides);
+    }
+  }
+
 }

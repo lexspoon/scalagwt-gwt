@@ -251,7 +251,7 @@ public abstract class JDeclaredType extends JReferenceType implements
   /**
    * Clears all existing implemented interfaces.
    */
-  void clearImplements() {
+  public void clearImplements() {
     superInterfaces = Lists.create();
   }
 

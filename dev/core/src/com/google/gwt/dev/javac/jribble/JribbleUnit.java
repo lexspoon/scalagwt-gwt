@@ -15,7 +15,6 @@
  */
 package com.google.gwt.dev.javac.jribble;
 
-import com.google.gwt.dev.jjs.ast.JClassType;
 import com.google.gwt.dev.jjs.ast.JDeclaredType;
 
 /**
@@ -23,9 +22,9 @@ import com.google.gwt.dev.jjs.ast.JDeclaredType;
  */
 public class JribbleUnit {
   private final String name;
-  private final JClassType syntaxTree;
+  private final JDeclaredType syntaxTree;
 
-  public JribbleUnit(String name, JClassType syntaxTree) {
+  public JribbleUnit(String name, JDeclaredType syntaxTree) {
     this.name = name;
     this.syntaxTree = syntaxTree;
   }
@@ -39,6 +38,10 @@ public class JribbleUnit {
    * hierarchy is mostly reused, but some node types replaced by Loose Java
    * equivalents. {@link com.google.gwt.dev.jjs.impl.GenerateJavaAST} can
    * convert this syntax tree to a proper JJS syntax tree.
+   * 
+   * TODO(spoon) this would make more sense returning the protobuf AST.
+   * The ProtobufReader could run later and use the real classes and methods,
+   * rather than using the dummy program.
    */
   public JDeclaredType getSyntaxTree() {
     return syntaxTree;

@@ -24,4 +24,8 @@ public interface JribVisitor {
   public boolean visit(JribMethodCall x, Context ctx);
 
   public void endVisit(JribMethodCall x, Context ctx);
+
+  public boolean visit(JribNewInstance x, Context ctx);
+
+  public void endVisit(JribNewInstance x, Context ctx);
 }

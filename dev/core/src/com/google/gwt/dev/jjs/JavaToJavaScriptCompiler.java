@@ -38,6 +38,7 @@ import com.google.gwt.dev.cfg.ModuleDef;
 import com.google.gwt.dev.javac.CompilationState;
 import com.google.gwt.dev.javac.jribble.JribbleUnit;
 import com.google.gwt.dev.javac.jribble.ast.JribMethodCall;
+import com.google.gwt.dev.javac.jribble.ast.JribNewInstance;
 import com.google.gwt.dev.javac.jribble.ast.JribVisitor;
 import com.google.gwt.dev.jdt.RebindPermutationOracle;
 import com.google.gwt.dev.jdt.WebModeCompilerFrontEnd;
@@ -53,9 +54,12 @@ import com.google.gwt.dev.jjs.ast.JClassType;
 import com.google.gwt.dev.jjs.ast.JDeclaredType;
 import com.google.gwt.dev.jjs.ast.JExpression;
 import com.google.gwt.dev.jjs.ast.JGwtCreate;
+import com.google.gwt.dev.jjs.ast.JInterfaceType;
+import com.google.gwt.dev.jjs.ast.JLocal;
 import com.google.gwt.dev.jjs.ast.JMethod;
 import com.google.gwt.dev.jjs.ast.JMethodBody;
 import com.google.gwt.dev.jjs.ast.JMethodCall;
+import com.google.gwt.dev.jjs.ast.JParameter;
 import com.google.gwt.dev.jjs.ast.JProgram;
 import com.google.gwt.dev.jjs.ast.JReboundEntryPoint;
 import com.google.gwt.dev.jjs.ast.JStatement;
@@ -903,11 +907,40 @@ public class JavaToJavaScriptCompiler {
     class FindRefs extends JVisitor implements JribVisitor {
       List<String> refs = new ArrayList<String>();
 
+      public void endVisit(JDeclaredType x, Context ctx) {
+        if (x.getSuperClass() != null) {
+          refs.add(x.getSuperClass().getName());
+        }
+        for (JInterfaceType intf : x.getImplements()) {
+          refs.add(intf.getName());
+        }
+      }
+
+      public void endVisit(JLocal x, Context ctx) {
+        if (x.getType() instanceof JDeclaredType) {
+          refs.add(((JDeclaredType)x.getType()).getName());
+        }
+      }
+
+      public void endVisit(JParameter x, Context ctx) {
+        if (x.getType() instanceof JDeclaredType) {
+          refs.add(((JDeclaredType)x.getType()).getName());
+        }
+      }
+
       public void endVisit(JribMethodCall x, Context ctx) {
         refs.add(x.getMethodRef().getTypeName());
       }
 
+      public void endVisit(JribNewInstance x, Context ctx) {
+        refs.add(x.getConstructorRef().getTypeName());
+      }
+
       public boolean visit(JribMethodCall x, Context ctx) {
+        return true;
+      }
+
+      public boolean visit(JribNewInstance x, Context ctx) {
         return true;
       }
     }

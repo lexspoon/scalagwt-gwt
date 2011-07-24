@@ -100,7 +100,9 @@ public class TypeMap {
   }
 
   public JDeclaredType get(JDeclaredType type) {
-    return declaredTypesByName.get(type.getName());
+    JDeclaredType res = declaredTypesByName.get(type.getName());
+    assert res != null;
+    return res;
   }
 
   public JMethod get(JMethod target) {
@@ -163,8 +165,12 @@ public class TypeMap {
   }
 
   public void put(JMethod method) {
-    methodsByName.put(methodDescriptor(method.getEnclosingType().getName(),
-        method.getJsniSignature()), method);
+    String methodDescriptor = methodDescriptor(method.getEnclosingType().getName(),
+        method.getJsniSignature());
+    if (methodDescriptor.startsWith("java.lang.Object")) {
+      boolean s = true;
+    }
+    methodsByName.put(methodDescriptor, method);
   }
 
   public JNode tryGet(Binding binding) {

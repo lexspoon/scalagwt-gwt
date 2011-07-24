@@ -107,12 +107,20 @@ public class BuildTypeMap {
     @Override
     public boolean visit(JClassType type, Context ctx) {
       currentType = typeMap.get(type);
+      currentType.setSuperClass((JClassType) typeMap.get(type.getSuperClass())); 
+      for (JInterfaceType intf : type.getImplements()) {
+        currentType.addImplements((JInterfaceType) typeMap.get(intf));
+      }
       return true;
     }
 
     @Override
     public boolean visit(JInterfaceType type, Context ctx) {
       currentType = typeMap.get(type);
+      currentType.setSuperClass((JClassType) typeMap.get(type.getSuperClass())); 
+      for (JInterfaceType intf : type.getImplements()) {
+        currentType.addImplements((JInterfaceType) typeMap.get(intf));
+      }
       return true;
     }
 

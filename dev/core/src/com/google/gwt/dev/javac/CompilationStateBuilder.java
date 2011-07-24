@@ -15,18 +15,15 @@
  */
 package com.google.gwt.dev.javac;
 
-import com.google.gwt.core.ext.TreeLogger;
-import com.google.gwt.core.ext.UnableToCompleteException;
-import com.google.gwt.dev.javac.CompilationUnitBuilder.GeneratedCompilationUnitBuilder;
-import com.google.gwt.dev.javac.CompilationUnitBuilder.ResourceCompilationUnitBuilder;
-import com.google.gwt.dev.javac.JdtCompiler.UnitProcessor;
-import com.google.gwt.dev.javac.jribble.JribbleParser;
-import com.google.gwt.dev.javac.jribble.JribbleUnit;
-import com.google.gwt.dev.jjs.ast.JClassType;
-import com.google.gwt.dev.js.ast.JsProgram;
-import com.google.gwt.dev.resource.Resource;
-import com.google.gwt.dev.resource.ResourceOracle;
-import com.google.gwt.dev.util.Util;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
 
 import org.apache.commons.collections.map.AbstractReferenceMap;
 import org.apache.commons.collections.map.ReferenceIdentityMap;
@@ -35,15 +32,16 @@ import org.eclipse.jdt.internal.compiler.ast.AbstractMethodDeclaration;
 import org.eclipse.jdt.internal.compiler.ast.CompilationUnitDeclaration;
 import org.eclipse.jdt.internal.compiler.lookup.ReferenceBinding;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.Map.Entry;
+import com.google.gwt.core.ext.TreeLogger;
+import com.google.gwt.core.ext.UnableToCompleteException;
+import com.google.gwt.dev.javac.CompilationUnitBuilder.GeneratedCompilationUnitBuilder;
+import com.google.gwt.dev.javac.CompilationUnitBuilder.ResourceCompilationUnitBuilder;
+import com.google.gwt.dev.javac.JdtCompiler.UnitProcessor;
+import com.google.gwt.dev.javac.jribble.JribbleReader;
+import com.google.gwt.dev.javac.jribble.JribbleUnit;
+import com.google.gwt.dev.jjs.ast.JDeclaredType;
+import com.google.gwt.dev.js.ast.JsProgram;
+import com.google.gwt.dev.resource.Resource;
 
 /**
  * Manages a centralized cache for compiled units.
@@ -306,10 +304,9 @@ public class CompilationStateBuilder {
       if (!isJribbleFile(source)) {
         continue;
       }
-      JClassType ast;
+      JDeclaredType ast;
       try {
-        ast = JribbleParser.parse(Util.createReader(logger,
-            source.openContents()));
+        ast = new JribbleReader(logger).declaredType(source.openContents());
       } catch (UnableToCompleteException e) {
         // bad unit; skip it
         continue;
